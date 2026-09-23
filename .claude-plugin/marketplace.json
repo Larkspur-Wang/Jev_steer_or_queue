@@ -1,0 +1,15 @@
+{
+  "name": "jev-steer-or-queue",
+  "owner": {
+    "name": "Larkspur-Wang",
+    "email": "wanglongwen@foxmail.com"
+  },
+  "description": "Jev-based steer / queue / interrupt routing for coding-agent CLIs.",
+  "plugins": [
+    {
+      "name": "jev-steer-or-queue",
+      "source": "./claude-code",
+      "description": "Jev decides whether a mid-turn message steers, queues, or stops the running task."
+    }
+  ]
+}

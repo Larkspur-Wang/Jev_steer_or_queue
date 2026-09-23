@@ -1,0 +1,37 @@
+{
+  "name": "jev-steer-or-queue",
+  "version": "0.1.1",
+  "description": "Use TypeSafe Jev to decide whether a message sent mid-turn should steer the running task, wait in a queue, or stop it.",
+  "author": {
+    "name": "Larkspur-Wang",
+    "email": "wanglongwen@foxmail.com"
+  },
+  "repository": "https://github.com/Larkspur-Wang/Jev_steer_or_queue",
+  "keywords": [
+    "jev",
+    "typesafe",
+    "hooks",
+    "queue",
+    "steer"
+  ],
+  "userConfig": {
+    "typesafe_api_key": {
+      "type": "string",
+      "title": "TypeSafe API key",
+      "description": "Key for api.typesafe.ai. Leave empty to use the TYPESAFE_API_KEY environment variable.",
+      "sensitive": true
+    },
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "description": "shadow: only log Jev's decisions. active: queue and stop messages for real.",
+      "options": [
+        "shadow",
+        "active"
+      ],
+      "default": "shadow"
+    }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Larkspur-Wang/Jev_steer_or_queue"
+}
