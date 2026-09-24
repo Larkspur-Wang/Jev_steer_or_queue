@@ -1,6 +1,6 @@
 {
   "name": "jev-steer-or-queue",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Use TypeSafe Jev to decide whether a message sent mid-turn should steer the running task, wait in a queue, or stop it.",
   "author": {
     "name": "Larkspur-Wang",
