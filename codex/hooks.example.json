@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "python3 /ABSOLUTE/PATH/TO/jev_router.py codex", "timeout": 10 }] }
+    ],
+    "PreToolUse": [
+      { "hooks": [{ "type": "command", "command": "python3 /ABSOLUTE/PATH/TO/jev_router.py codex", "timeout": 5 }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "python3 /ABSOLUTE/PATH/TO/jev_router.py codex", "timeout": 5 }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "python3 /ABSOLUTE/PATH/TO/jev_router.py codex", "timeout": 5 }] }
+    ],
+    "Interrupt": [
+      { "hooks": [{ "type": "command", "command": "python3 /ABSOLUTE/PATH/TO/jev_router.py codex", "timeout": 3 }] }
+    ]
+  }
+}

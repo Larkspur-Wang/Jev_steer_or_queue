@@ -38,3 +38,21 @@
 
 - 项目级 `.codex/hooks.json` 在信任目录下会加载；`SessionStart`、`UserPromptSubmit` 会触发，带 `turn_id`。
 - 由于账号用量上限，模型没有跑起来，中途消息的行为还没测。
+
+## 5. Codex CLI（2026-09-24，GPT-6-Luna low）
+
+| 你做什么 | hook 是否触发 | 结果 |
+| --- | --- | --- |
+| Enter 插话（任务运行中） | `UserPromptSubmit` 立刻触发，`turn_id` = 当前 turn | 原生注入；加了提示后行为可控 |
+| Tab 排队 | **不触发** | 消息等到本轮 Stop 之后才作为新 turn 出现；原生排队已经正确 |
+| Esc | 触发 `Interrupt`（无 `turn_id`） | 正常中断 |
+| 等待中的 turn | `Stop` 触发，带 `turn_id` | — |
+
+关键结论：
+
+- **在 Codex 里 block 会挂死本轮。** 对中途消息返回 `{"decision":"block"}` 后，没有新的模型调用，也没有 `Stop`，TUI 一直停在“Blocked by hook”，直到手动按 Esc。所以 Codex 适配器不 block，只加提示。
+- **软提示有效。** queue 提示后，三次 sleep 全部按原计划做完，之后才列目录；stop 提示加 `PreToolUse` deny 后，第一次 sleep 结束就停了。延迟 760–980ms。
+- **Codex 自己的提示词也会触发 `UserPromptSubmit`**（记忆整理、子会话、自动审查）。这些必须过滤，否则会把内部任务误当成“当前任务”。适配器用 `INTERNAL_MARKERS` 过滤。
+- Codex hook 条目不能带插件配置，API key 走 `~/.jev-steer-or-queue/config.json`。
+
+早期一次失败值得记下来：第一轮 e2e 测试时会话里没有 API key，路由静默走“失败即放行”，看起来像成功，实际只是 Codex 原生行为。日志里 `jev: null` 才能区分。

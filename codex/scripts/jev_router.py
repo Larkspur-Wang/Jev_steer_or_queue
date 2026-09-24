@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Jev steer / queue / interrupt router for Claude Code hooks.
+"""Jev steer / queue / interrupt router for coding-agent CLI hooks.
 
-Wire it to UserPromptSubmit, PreToolUse, PostToolUse, Stop and StopFailure.
-Only messages sent while a turn is running are classified; a message sent to
-an idle session passes through untouched and never reaches Jev.
+Usage: jev_router.py <claude|codex>
 
-  steer      allow; Claude Code injects it at the next tool boundary (native)
-  queue      block, store in a per-session FIFO, replay it from the Stop hook
-  interrupt  block, then return continue:false at the next tool hook
+The client argument picks the session model; the Codex branch lives in a copy of this file.
+
+  steer      allow; the client injects the message natively
+  queue      hold it and replay it after the turn (Claude Code blocks and replays
+             from the Stop hook; Codex, where blocking wedges the turn, annotates)
+  interrupt  stop the turn (Claude Code: continue:false at the next tool hook;
+             Codex: an annotation plus a denied tool call)
 
 In shadow mode (the default) nothing is blocked or stopped; decisions are only
 logged. Any error or timeout falls back to "allow", i.e. native behaviour.
@@ -68,7 +70,8 @@ def api_key() -> str:
 
 
 def data_dir() -> str:
-    path = os.environ.get("CLAUDE_PLUGIN_DATA") or os.path.expanduser("~/.jev-steer-or-queue/claude-code")
+    path = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("JEV_ROUTER_DATA") \
+        or os.path.expanduser("~/.jev-steer-or-queue")
     os.makedirs(os.path.join(path, "sessions"), exist_ok=True)
     return path
 
@@ -207,6 +210,11 @@ def decide(jev: Dict[str, Any]) -> str:
 
 def on_prompt(client: str, payload: Dict[str, Any], session: Session, state: Dict[str, Any], record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     prompt = str(payload.get("prompt") or "")
+    if client == "codex" and any(marker in prompt for marker in INTERNAL_MARKERS):
+        record["internal"] = True
+        return None
+    if client == "codex":
+        return codex_prompt(payload, session, state, record, prompt)
     prompt_id = payload.get("prompt_id")
     # A mid-turn message carries the running turn's prompt_id; a new turn gets a
     # fresh one. This stays correct after Esc, which fires no hook at all.
@@ -240,6 +248,43 @@ def on_prompt(client: str, payload: Dict[str, Any], session: Session, state: Dic
     return {"decision": "block", "reason": "将停止当前任务（Jev {0}），在下一个工具边界生效。".format(label)}
 
 
+def codex_prompt(payload: Dict[str, Any], session: Session, state: Dict[str, Any],
+                 record: Dict[str, Any], prompt: str) -> Optional[Dict[str, Any]]:
+    """Codex: turn_id tells us whether a prompt is mid-turn; blocking wedges the turn."""
+    turn_id = payload.get("turn_id")
+    mid_turn = bool(state.get("active")) and turn_id == state.get("turn")
+    record["mid_turn"] = mid_turn
+    if not mid_turn:
+        if not state.get("active"):
+            state.update({"active": True, "turn": turn_id, "task": prompt[:MAX_TASK_CHARS], "stop": False})
+        return None
+    jev = ask_jev(prompt, state.get("task", ""))
+    action = decide(jev) if "error" not in jev else "steer"
+    record.update({"jev": jev, "action": action})
+    if option("MODE", "shadow") != "active" or action == "steer":
+        return None
+    label = "{0} {1:.2f}".format(action, (jev.get("probabilities") or {}).get(action, 0.0))
+    if action == "queue":
+        text = ("[jev] The message above is a queued request (Jev {0}): it is unrelated to the current task. "
+                "Do not act on it now. Finish every step you already planned, then handle it.".format(label))
+    else:
+        state["stop"] = True
+        text = ("[jev] The message above asks you to stop (Jev {0}): stop the current task now. "
+                "Do not call any more tools; say in one line what is finished and what is not, then end the turn.".format(label))
+    return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": text}}
+
+
+def codex_tool(event: str, state: Dict[str, Any], record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not state.get("stop"):
+        return None
+    if event == "PreToolUse":
+        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                       "permissionDecisionReason": "The user asked to stop this task; do not call more tools."}}
+    state.update({"active": False, "stop": False})
+    record["action"] = "stop_after_tool"
+    return None
+
+
 def on_tool(state: Dict[str, Any], session: Session, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not state.get("stop"):
         return None
@@ -266,7 +311,7 @@ def on_stop(state: Dict[str, Any], session: Session, record: Dict[str, Any]) -> 
 
 
 def main() -> int:
-    client = sys.argv[1] if len(sys.argv) > 1 else "claude"
+    client = sys.argv[1] if len(sys.argv) > 1 else "codex"
     try:
         payload = json.loads(sys.stdin.read() or "{}")
     except ValueError:
@@ -284,10 +329,10 @@ def main() -> int:
         if option("LOG_PROMPTS", "true").lower() != "false":
             record["prompt"] = str(payload.get("prompt") or "")[:300]
     elif event in ("PreToolUse", "PostToolUse"):
-        out = on_tool(state, session, record)
+        out = codex_tool(event, state, record) if client == "codex" else on_tool(state, session, record)
     elif event == "Stop":
         out = on_stop(state, session, record)
-    elif event == "StopFailure":
+    elif event in ("StopFailure", "Interrupt"):
         state.update({"active": False, "stop": False})
     session.save(state)
 

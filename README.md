@@ -11,7 +11,7 @@ A hook that lets [TypeSafe Jev](https://docs.typesafe.ai/) make that call in abo
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?style=flat-square&logo=claude&logoColor=white)](claude-code/)
-[![Codex CLI](https://img.shields.io/badge/Codex%20CLI-in%20testing-6e7681?style=flat-square)](codex/)
+[![Codex CLI](https://img.shields.io/badge/Codex%20CLI-supported%20(soft)-10a37f?style=flat-square)](codex/)
 [![Powered by Jev](https://img.shields.io/badge/powered%20by-TypeSafe%20Jev-7c5cff?style=flat-square)](https://docs.typesafe.ai/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)](claude-code/scripts/jev_router.py)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-0ea5e9?style=flat-square)](claude-code/scripts/jev_router.py)
@@ -46,7 +46,7 @@ Messages sent while the agent is idle are never touched and never sent to Jev.
 | Client | Folder | Status |
 | :--- | :--- | :--- |
 | Claude Code CLI | [`claude-code/`](claude-code/) | ✅ Tested end to end on 2.1.280 |
-| Codex CLI | [`codex/`](codex/) | 🧪 In testing, not released yet |
+| Codex CLI | [`codex/`](codex/) | ✅ Tested on 0.156.1, with a caveat: Codex can only be nudged, not blocked |
 
 The two clients have different hook contracts, so each one has its own self-contained folder.
 
